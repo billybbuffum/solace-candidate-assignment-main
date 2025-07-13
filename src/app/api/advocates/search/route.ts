@@ -3,6 +3,8 @@ import db from "../../../../db";
 import { advocateData } from "../../../../db/seed/advocates";
 import { like, or, sql, desc, asc } from "drizzle-orm";
 import { NextRequest } from "next/server";
+import { searchCache, generateCacheKey } from "../../../../lib/cache";
+import { apiRateLimiter, getClientId } from "../../../../lib/rateLimit";
 
 interface SearchParams {
   q?: string;
@@ -19,6 +21,29 @@ interface SearchParams {
 
 export async function GET(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientId = getClientId(request);
+    const rateLimitResult = apiRateLimiter.check(clientId);
+    
+    if (!rateLimitResult.allowed) {
+      return Response.json(
+        { 
+          error: 'Rate limit exceeded',
+          message: 'Too many requests. Please try again later.',
+          resetTime: rateLimitResult.resetTime
+        },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '100',
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString(),
+            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString()
+          }
+        }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     
     // Extract and validate query parameters
@@ -49,6 +74,23 @@ export async function GET(request: NextRequest) {
     const cityFilter = sanitizeInput(params.city);
     const degreeFilter = sanitizeInput(params.degree);
     const specialtiesFilter = sanitizeInput(params.specialties);
+    
+    // Check cache first
+    const cacheKey = generateCacheKey(params);
+    const cachedResult = searchCache.get(cacheKey);
+    
+    if (cachedResult) {
+      return Response.json({
+        ...cachedResult,
+        cached: true
+      }, {
+        headers: {
+          'X-RateLimit-Limit': '100',
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+          'X-Cache': 'HIT'
+        }
+      });
+    }
     
     let data;
     let total = 0;
@@ -115,14 +157,18 @@ export async function GET(request: NextRequest) {
       
       data = await query;
       
-      // Get total count (in production, optimize this with a separate count query)
-      const countQuery = db.select({ count: sql<number>`count(*)` }).from(advocates);
+      // Optimized count query using window function for better performance
+      const countQuery = db.select({ 
+        count: sql<number>`count(*) OVER()` 
+      }).from(advocates);
+      
       if (conditions.length > 0) {
         const countConditions = conditions.reduce((acc, condition, index) => 
           index === 0 ? condition : sql`${acc} AND ${condition}`, sql``);
         countQuery.where(countConditions);
       }
-      const countResult = await countQuery;
+      
+      const countResult = await countQuery.limit(1);
       total = countResult[0]?.count || 0;
       
     } catch (dbError) {
@@ -216,7 +262,7 @@ export async function GET(request: NextRequest) {
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
     
-    return Response.json({
+    const responseData = {
       data,
       pagination: {
         page,
@@ -235,6 +281,17 @@ export async function GET(request: NextRequest) {
         maxExperience: params.maxExperience,
         sortBy: params.sortBy,
         sortOrder: params.sortOrder
+      }
+    };
+    
+    // Cache the result (cache for 5 minutes for search results)
+    searchCache.set(cacheKey, responseData, 300000);
+    
+    return Response.json(responseData, {
+      headers: {
+        'X-RateLimit-Limit': '100',
+        'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+        'X-Cache': 'MISS'
       }
     });
     
