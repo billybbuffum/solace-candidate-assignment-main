@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Solace Candidate Assignment",
-  description: "Show us what you got",
+  title: "Solace Advocates Search",
+  description: "Find the perfect advocate for your mental health needs",
 };
 
 export default function RootLayout({
@@ -16,7 +17,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+      </body>
     </html>
   );
 }
