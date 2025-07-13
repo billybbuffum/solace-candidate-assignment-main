@@ -121,6 +121,8 @@ export default function Home() {
         setCurrentPage(1);
       }
       
+      // Remove all automatic scrolling - user stays at current position
+      
     } catch (err) {
       console.error('Failed to fetch advocates:', err);
       setError(err instanceof Error ? err.message : 'Failed to load advocates');
@@ -147,7 +149,9 @@ export default function Home() {
   
   // Handle page changes
   useEffect(() => {
-    if (currentPage === 1) return; // Skip initial load
+    // Only skip if this is the very first render (initial load)
+    // Allow navigation to page 1 from other pages
+    if (currentPage === 1 && advocates.length === 0 && !isLoading) return;
     fetchAdvocates(debouncedFilters, currentPage, false);
   }, [currentPage, debouncedFilters, fetchAdvocates]);
 
@@ -159,9 +163,14 @@ export default function Home() {
   // Handle pagination
   const handlePageChange = useCallback((newPage: number) => {
     if (newPage >= 1 && pagination && newPage <= pagination.totalPages) {
+      // Capture current scroll position
+      const currentScrollY = window.scrollY;
       setCurrentPage(newPage);
-      // Scroll to top when page changes
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Restore scroll position after state update
+      setTimeout(() => {
+        window.scrollTo(0, currentScrollY);
+      }, 0);
     }
   }, [pagination]);
 
@@ -184,15 +193,15 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-solace-light">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <header className="bg-solace-primary shadow-solace">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-hero md:text-hero-lg font-mollie text-white mb-4">
               Find Your Perfect Advocate
             </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-white/90 max-w-3xl mx-auto font-light leading-relaxed">
               Connect with qualified mental health advocates who understand your needs and can provide the support you deserve.
             </p>
           </div>
@@ -200,7 +209,7 @@ export default function Home() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Search filters */}
         <SearchFiltersComponent 
           onFiltersChange={handleFiltersChange}
@@ -208,12 +217,12 @@ export default function Home() {
         />
 
         {/* Results section */}
-        <div className="mb-6">
+        <div className="mb-6" data-results-section>
           {/* Loading state */}
           {isLoading && (
             <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-4 text-gray-600">Loading advocates...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-solace-primary"></div>
+              <p className="mt-4 text-solace-dark">Loading advocates...</p>
             </div>
           )}
 
@@ -228,7 +237,7 @@ export default function Home() {
                 <p className="text-red-600">{error}</p>
                 <button
                   onClick={() => fetchAdvocates(filters, currentPage, true)}
-                  className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200"
+                  className="mt-4 px-6 py-3 bg-solace-primary text-white rounded-lg hover:bg-solace-secondary transition-colors duration-200 font-medium"
                 >
                   Try Again
                 </button>
@@ -257,7 +266,7 @@ export default function Home() {
                   sortBy: 'firstName',
                   sortOrder: 'asc'
                 })}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200"
+                className="px-6 py-3 bg-solace-primary text-white rounded-lg hover:bg-solace-secondary transition-colors duration-200 font-medium"
               >
                 Clear All Filters
               </button>
@@ -269,14 +278,14 @@ export default function Home() {
             <>
               {/* Search indicator */}
               {isSearching && (
-                <div className="flex items-center justify-center mb-4 text-blue-600">
-                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                  <span className="text-sm">Updating results...</span>
+                <div className="flex items-center justify-center mb-4 text-solace-primary">
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-solace-primary mr-2"></div>
+                  <span className="text-sm font-medium">Updating results...</span>
                 </div>
               )}
 
               {/* Results grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
                 {advocates.map((advocate, index) => {
                   // Use a unique key - prefer id if available, otherwise use index with content
                   const key = advocate.id || `${advocate.firstName}-${advocate.lastName}-${index}`;
@@ -309,10 +318,10 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-gray-600">
-            <p>&copy; 2024 Solace. Connecting you with the care you deserve.</p>
+      <footer className="bg-white border-t border-gray-100 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center text-solace-dark">
+            <p className="font-light text-lg">&copy; 2024 Solace. Connecting you with the care you deserve.</p>
           </div>
         </div>
       </footer>

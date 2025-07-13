@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Lato } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from "../components/ErrorBoundary";
 
-const inter = Inter({ subsets: ["latin"] });
+const lato = Lato({ 
+  subsets: ["latin"],
+  weight: ["100", "300", "400", "700", "900"],
+  style: ["normal", "italic"],
+  display: "swap"
+});
+
+// Note: Mollie Glaston would need to be added via CSS @import or link tag
+// as it's not available in Google Fonts Next.js integration
 
 export const metadata: Metadata = {
   title: "Solace Advocates Search",
@@ -17,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={lato.className}>
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
