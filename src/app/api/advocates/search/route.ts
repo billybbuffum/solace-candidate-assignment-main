@@ -1,6 +1,6 @@
-import db from "../../../db";
-import { advocates } from "../../../db/schema";
-import { advocateData } from "../../../db/seed/advocates";
+import { advocates } from "../../../../db/schema";
+import db from "../../../../db";
+import { advocateData } from "../../../../db/seed/advocates";
 import { like, or, sql, desc, asc } from "drizzle-orm";
 import { NextRequest } from "next/server";
 
@@ -10,6 +10,7 @@ interface SearchParams {
   limit?: string;
   city?: string;
   degree?: string;
+  specialties?: string;
   minExperience?: string;
   maxExperience?: string;
   sortBy?: 'firstName' | 'lastName' | 'yearsOfExperience' | 'city';
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
       limit: searchParams.get('limit') || '20',
       city: searchParams.get('city') || undefined,
       degree: searchParams.get('degree') || undefined,
+      specialties: searchParams.get('specialties') || undefined,
       minExperience: searchParams.get('minExperience') || undefined,
       maxExperience: searchParams.get('maxExperience') || undefined,
       sortBy: (searchParams.get('sortBy') as SearchParams['sortBy']) || 'firstName',
@@ -35,57 +37,64 @@ export async function GET(request: NextRequest) {
     
     // Validate and sanitize inputs
     const page = Math.max(1, parseInt(params.page) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(params.limit) || 20)); // Cap at 100 per page
+    const limit = Math.min(100, Math.max(1, parseInt(params.limit) || 20));
     const offset = (page - 1) * limit;
     
-    // Try to use database first, fallback to mock data
+    // Input sanitization
+    const sanitizeInput = (input: string | undefined): string | undefined => {
+      return input?.trim().substring(0, 100); // Limit length and trim
+    };
+    
+    const searchQuery = sanitizeInput(params.q);
+    const cityFilter = sanitizeInput(params.city);
+    const degreeFilter = sanitizeInput(params.degree);
+    const specialtiesFilter = sanitizeInput(params.specialties);
+    
     let data;
     let total = 0;
     
     try {
-      // Check if database is available by testing connection
-      const testQuery = await db.select().from(advocates).limit(1);
-      
-      // Build dynamic query with filters
+      // Try database first
       let query = db.select().from(advocates);
       const conditions = [];
       
-      // Text search across multiple fields
-      if (params.q && params.q.trim()) {
-        const searchTerm = `%${params.q.toLowerCase().trim()}%`;
+      // Build search conditions
+      if (searchQuery) {
+        const searchTerm = `%${searchQuery.toLowerCase()}%`;
         conditions.push(
           or(
             like(sql`LOWER(${advocates.firstName})`, searchTerm),
             like(sql`LOWER(${advocates.lastName})`, searchTerm),
             like(sql`LOWER(${advocates.city})`, searchTerm),
             like(sql`LOWER(${advocates.degree})`, searchTerm),
-            like(sql`LOWER(CAST(${advocates.specialties} AS TEXT))`, searchTerm),
-            like(sql`CAST(${advocates.yearsOfExperience} AS TEXT)`, searchTerm)
+            like(sql`LOWER(CAST(${advocates.specialties} AS TEXT))`, searchTerm)
           )
         );
       }
       
-      // City filter
-      if (params.city) {
-        conditions.push(like(sql`LOWER(${advocates.city})`, `%${params.city.toLowerCase()}%`));
+      if (cityFilter) {
+        conditions.push(like(sql`LOWER(${advocates.city})`, `%${cityFilter.toLowerCase()}%`));
       }
       
-      // Degree filter
-      if (params.degree) {
-        conditions.push(like(sql`LOWER(${advocates.degree})`, `%${params.degree.toLowerCase()}%`));
+      if (degreeFilter) {
+        conditions.push(like(sql`LOWER(${advocates.degree})`, `%${degreeFilter.toLowerCase()}%`));
       }
       
-      // Experience range filter
+      if (specialtiesFilter) {
+        conditions.push(like(sql`LOWER(CAST(${advocates.specialties} AS TEXT))`, `%${specialtiesFilter.toLowerCase()}%`));
+      }
+      
+      // Experience range filters
       if (params.minExperience) {
         const minExp = parseInt(params.minExperience);
-        if (!isNaN(minExp)) {
+        if (!isNaN(minExp) && minExp >= 0) {
           conditions.push(sql`${advocates.yearsOfExperience} >= ${minExp}`);
         }
       }
       
       if (params.maxExperience) {
         const maxExp = parseInt(params.maxExperience);
-        if (!isNaN(maxExp)) {
+        if (!isNaN(maxExp) && maxExp >= 0) {
           conditions.push(sql`${advocates.yearsOfExperience} <= ${maxExp}`);
         }
       }
@@ -106,19 +115,25 @@ export async function GET(request: NextRequest) {
       
       data = await query;
       
-      // Get total count for pagination (simplified - in production, use a separate count query)
-      const countResult = await db.select({ count: sql<number>`count(*)` }).from(advocates);
+      // Get total count (in production, optimize this with a separate count query)
+      const countQuery = db.select({ count: sql<number>`count(*)` }).from(advocates);
+      if (conditions.length > 0) {
+        const countConditions = conditions.reduce((acc, condition, index) => 
+          index === 0 ? condition : sql`${acc} AND ${condition}`, sql``);
+        countQuery.where(countConditions);
+      }
+      const countResult = await countQuery;
       total = countResult[0]?.count || 0;
       
     } catch (dbError) {
-      console.log('Database not available, using mock data:', dbError);
+      console.log('Database not available, using mock data');
       
-      // Fallback to mock data with client-side filtering
+      // Fallback to mock data
       let filteredData = [...advocateData];
       
-      // Apply search filter
-      if (params.q && params.q.trim()) {
-        const searchTerm = params.q.toLowerCase().trim();
+      // Apply filters to mock data
+      if (searchQuery) {
+        const searchTerm = searchQuery.toLowerCase();
         filteredData = filteredData.filter(advocate => 
           advocate.firstName.toLowerCase().includes(searchTerm) ||
           advocate.lastName.toLowerCase().includes(searchTerm) ||
@@ -129,16 +144,21 @@ export async function GET(request: NextRequest) {
         );
       }
       
-      // Apply other filters
-      if (params.city) {
+      if (cityFilter) {
         filteredData = filteredData.filter(advocate => 
-          advocate.city.toLowerCase().includes(params.city!.toLowerCase())
+          advocate.city.toLowerCase().includes(cityFilter.toLowerCase())
         );
       }
       
-      if (params.degree) {
+      if (degreeFilter) {
         filteredData = filteredData.filter(advocate => 
-          advocate.degree.toLowerCase().includes(params.degree!.toLowerCase())
+          advocate.degree.toLowerCase().includes(degreeFilter.toLowerCase())
+        );
+      }
+      
+      if (specialtiesFilter) {
+        filteredData = filteredData.filter(advocate => 
+          advocate.specialties.some(s => s.toLowerCase().includes(specialtiesFilter.toLowerCase()))
         );
       }
       
@@ -188,8 +208,6 @@ export async function GET(request: NextRequest) {
       });
       
       total = filteredData.length;
-      
-      // Apply pagination
       data = filteredData.slice(offset, offset + limit);
     }
     
@@ -209,9 +227,10 @@ export async function GET(request: NextRequest) {
         hasPrevPage
       },
       filters: {
-        query: params.q,
-        city: params.city,
-        degree: params.degree,
+        query: searchQuery,
+        city: cityFilter,
+        degree: degreeFilter,
+        specialties: specialtiesFilter,
         minExperience: params.minExperience,
         maxExperience: params.maxExperience,
         sortBy: params.sortBy,
@@ -220,10 +239,11 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Error in advocates API:', error);
+    console.error('Error in search API:', error);
     return Response.json(
       { 
-        error: 'Internal server error',
+        error: 'Search failed',
+        message: 'Unable to search advocates at this time',
         data: [],
         pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false }
       },
