@@ -5,6 +5,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import AdvocateCard from '../components/AdvocateCard';
 import SearchFiltersComponent, { SearchFilters } from '../components/SearchFilters';
 import Pagination from '../components/Pagination';
+import AdvocateModal from '../components/AdvocateModal';
 
 // Define types for better type safety
 interface Advocate {
@@ -40,6 +41,8 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [selectedAdvocate, setSelectedAdvocate] = useState<Advocate | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [filters, setFilters] = useState<SearchFilters>({
     query: '',
     city: '',
@@ -162,6 +165,18 @@ export default function Home() {
     }
   }, [pagination]);
 
+  // Handle view details action
+  const handleViewDetails = useCallback((advocate: Advocate) => {
+    setSelectedAdvocate(advocate);
+    setIsModalOpen(true);
+  }, []);
+
+  // Handle modal close
+  const handleModalClose = useCallback(() => {
+    setIsModalOpen(false);
+    setSelectedAdvocate(null);
+  }, []);
+
   // Handle contact action
   const handleContact = useCallback((advocate: Advocate) => {
     // In a real app, this would open a contact modal or navigate to contact page
@@ -271,6 +286,7 @@ export default function Home() {
                       key={key}
                       advocate={advocate}
                       onContact={handleContact}
+                      onViewDetails={handleViewDetails}
                     />
                   );
                 })}
@@ -300,6 +316,14 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Advocate Details Modal */}
+      <AdvocateModal
+        advocate={selectedAdvocate}
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onContact={handleContact}
+      />
     </div>
   );
 }

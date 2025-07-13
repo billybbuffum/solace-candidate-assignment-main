@@ -16,9 +16,10 @@ interface Advocate {
 interface AdvocateCardProps {
   advocate: Advocate;
   onContact?: (advocate: Advocate) => void;
+  onViewDetails?: (advocate: Advocate) => void;
 }
 
-const AdvocateCard: React.FC<AdvocateCardProps> = ({ advocate, onContact }) => {
+const AdvocateCard: React.FC<AdvocateCardProps> = ({ advocate, onContact, onViewDetails }) => {
   const formatPhoneNumber = (phone: number): string => {
     const phoneStr = phone.toString();
     if (phoneStr.length === 10) {
@@ -70,21 +71,33 @@ const AdvocateCard: React.FC<AdvocateCardProps> = ({ advocate, onContact }) => {
         </div>
       </div>
 
-      {/* Contact information */}
-      <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-        <div>
-          <p className="text-sm text-gray-600">Contact</p>
-          <p className="text-sm font-medium text-gray-900">
-            {formatPhoneNumber(advocate.phoneNumber)}
-          </p>
+      {/* Contact information and actions */}
+      <div className="pt-4 border-t border-gray-100">
+        <div className="flex justify-between items-center mb-3">
+          <div>
+            <p className="text-sm text-gray-600">Contact</p>
+            <p className="text-sm font-medium text-gray-900">
+              {formatPhoneNumber(advocate.phoneNumber)}
+            </p>
+          </div>
         </div>
-        <button
-          onClick={() => onContact?.(advocate)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          aria-label={`Contact ${advocate.firstName} ${advocate.lastName}`}
-        >
-          Contact
-        </button>
+        
+        <div className="flex gap-2">
+          <button
+            onClick={() => onViewDetails?.(advocate)}
+            className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            aria-label={`View details for ${advocate.firstName} ${advocate.lastName}`}
+          >
+            View Details
+          </button>
+          <button
+            onClick={() => onContact?.(advocate)}
+            className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            aria-label={`Contact ${advocate.firstName} ${advocate.lastName}`}
+          >
+            Contact
+          </button>
+        </div>
       </div>
     </div>
   );
