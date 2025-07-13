@@ -106,8 +106,19 @@ export async function GET(request: NextRequest) {
       
       data = await query;
       
-      // Get total count for pagination (simplified - in production, use a separate count query)
-      const countResult = await db.select({ count: sql<number>`count(*)` }).from(advocates);
+      // Optimized count query using window function
+      const countQuery = db.select({ 
+        count: sql<number>`count(*) OVER()` 
+      }).from(advocates);
+      
+      // Apply same WHERE conditions as main query for accurate count
+      if (conditions.length > 0) {
+        const countConditions = conditions.reduce((acc, condition, index) => 
+          index === 0 ? condition : sql`${acc} AND ${condition}`, sql``);
+        countQuery.where(countConditions);
+      }
+      
+      const countResult = await countQuery.limit(1);
       total = countResult[0]?.count || 0;
       
     } catch (dbError) {
