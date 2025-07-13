@@ -52,15 +52,15 @@ const AdvocateModal: React.FC<AdvocateModalProps> = ({
 
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white rounded-xl shadow-solace-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
+          <div className="flex items-center justify-between p-6 border-b border-gray-100">
+            <h2 id="modal-title" className="text-xl font-medium text-solace-dark">
               {advocate.firstName} {advocate.lastName}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md p-1"
+              className="text-gray-400 hover:text-solace-primary focus:outline-none focus:ring-2 focus:ring-solace-primary rounded-md p-1"
               aria-label="Close modal"
             >
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,32 +75,32 @@ const AdvocateModal: React.FC<AdvocateModalProps> = ({
             <div className="mb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">Degree</h3>
-                  <p className="text-blue-600 font-medium">{advocate.degree}</p>
+                  <h3 className="text-sm font-medium text-gray-600 mb-1">Degree</h3>
+                  <p className="text-solace-primary font-medium">{advocate.degree}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">Location</h3>
-                  <p className="text-gray-900">{advocate.city}</p>
+                  <h3 className="text-sm font-medium text-gray-600 mb-1">Location</h3>
+                  <p className="text-solace-dark">{advocate.city}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">Experience</h3>
-                  <p className="text-gray-900">{getExperienceLabel(advocate.yearsOfExperience)}</p>
+                  <h3 className="text-sm font-medium text-gray-600 mb-1">Experience</h3>
+                  <p className="text-solace-dark">{getExperienceLabel(advocate.yearsOfExperience)}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-1">Phone</h3>
-                  <p className="text-gray-900">{formatPhoneNumber(advocate.phoneNumber)}</p>
+                  <h3 className="text-sm font-medium text-gray-600 mb-1">Phone</h3>
+                  <p className="text-solace-dark">{formatPhoneNumber(advocate.phoneNumber)}</p>
                 </div>
               </div>
             </div>
 
             {/* All specialties */}
             <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">All Specialties</h3>
+              <h3 className="text-sm font-medium text-solace-dark mb-3">All Specialties</h3>
               <div className="flex flex-wrap gap-2">
                 {advocate.specialties.map((specialty, index) => (
                   <span
                     key={index}
-                    className="inline-block px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full"
+                    className="inline-block px-3 py-1 text-sm font-medium bg-solace-light text-solace-primary rounded-full border border-solace-primary/20"
                   >
                     {specialty}
                   </span>
@@ -109,9 +109,9 @@ const AdvocateModal: React.FC<AdvocateModalProps> = ({
             </div>
 
             {/* Additional info section */}
-            <div className="bg-blue-50 rounded-lg p-4 mb-6">
-              <h3 className="text-sm font-medium text-blue-900 mb-2">About This Advocate</h3>
-              <p className="text-sm text-blue-800">
+            <div className="bg-solace-light rounded-lg p-4 mb-6">
+              <h3 className="text-sm font-medium text-solace-dark mb-2">About This Advocate</h3>
+              <p className="text-sm text-solace-dark font-light">
                 {advocate.firstName} is a qualified mental health advocate with {getExperienceLabel(advocate.yearsOfExperience)} of experience 
                 specializing in {advocate.specialties.length} areas of care. Based in {advocate.city}, they hold a {advocate.degree} degree 
                 and are ready to provide the support you need.
@@ -120,10 +120,10 @@ const AdvocateModal: React.FC<AdvocateModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+          <div className="flex justify-end gap-3 p-6 border-t border-gray-100">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200"
+              className="px-6 py-2 text-sm font-medium text-solace-dark bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200"
             >
               Close
             </button>
@@ -132,7 +132,7 @@ const AdvocateModal: React.FC<AdvocateModalProps> = ({
                 onContact(advocate);
                 onClose();
               }}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="px-6 py-2 text-sm font-medium text-white bg-solace-primary hover:bg-solace-secondary rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-solace-primary focus:ring-offset-2"
             >
               Contact {advocate.firstName}
             </button>

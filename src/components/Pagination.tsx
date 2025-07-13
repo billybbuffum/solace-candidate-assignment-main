@@ -55,17 +55,17 @@ const Pagination: React.FC<PaginationProps> = ({
 
   const pageNumbers = getPageNumbers();
 
-  const buttonClass = "relative inline-flex items-center px-3 py-2 text-sm font-medium rounded-md focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200";
-  const activeButtonClass = "bg-blue-600 text-white hover:bg-blue-700";
-  const inactiveButtonClass = "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50";
+  const buttonClass = "relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg focus:z-10 focus:outline-none focus:ring-2 focus:ring-solace-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200";
+  const activeButtonClass = "bg-solace-primary text-white hover:bg-solace-secondary shadow-solace";
+  const inactiveButtonClass = "bg-white text-solace-dark border border-gray-200 hover:bg-solace-light";
 
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 bg-white border-t border-gray-200">
+    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-6 bg-white border-t border-gray-100 rounded-lg shadow-solace mt-8">
       {/* Results info */}
-      <div className="text-sm text-gray-700">
-        Showing <span className="font-medium">{startItem}</span> to{' '}
-        <span className="font-medium">{endItem}</span> of{' '}
-        <span className="font-medium">{totalItems}</span> advocates
+      <div className="text-sm text-solace-dark font-light">
+        Showing <span className="font-medium text-solace-primary">{startItem}</span> to{' '}
+        <span className="font-medium text-solace-primary">{endItem}</span> of{' '}
+        <span className="font-medium text-solace-primary">{totalItems}</span> advocates
       </div>
 
       {/* Pagination controls */}
@@ -90,7 +90,7 @@ const Pagination: React.FC<PaginationProps> = ({
               return (
                 <span
                   key={`dots-${index}`}
-                  className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700"
+                  className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-400"
                 >
                   ...
                 </span>
