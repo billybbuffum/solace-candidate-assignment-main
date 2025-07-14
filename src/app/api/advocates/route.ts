@@ -122,7 +122,6 @@ export async function GET(request: NextRequest) {
       total = countResult[0]?.count || 0;
       
     } catch (dbError) {
-      console.log('Database not available, using mock data:', dbError);
       
       // Fallback to mock data with client-side filtering
       let filteredData = [...advocateData];
@@ -231,7 +230,6 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error('Error in advocates API:', error);
     return Response.json(
       { 
         error: 'Internal server error',

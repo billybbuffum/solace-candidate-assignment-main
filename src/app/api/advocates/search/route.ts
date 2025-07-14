@@ -1,23 +1,11 @@
 import { advocates } from "../../../../db/schema";
 import db from "../../../../db";
 import { advocateData } from "../../../../db/seed/advocates";
-import { like, or, sql, desc, asc } from "drizzle-orm";
+import { like, or, sql, desc, asc, ilike, and } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { searchCache, generateCacheKey } from "../../../../lib/cache";
 import { apiRateLimiter, getClientId } from "../../../../lib/rateLimit";
-
-interface SearchParams {
-  q?: string;
-  page?: string;
-  limit?: string;
-  city?: string;
-  degree?: string;
-  specialties?: string;
-  minExperience?: string;
-  maxExperience?: string;
-  sortBy?: 'firstName' | 'lastName' | 'yearsOfExperience' | 'city';
-  sortOrder?: 'asc' | 'desc';
-}
+import { searchParamsSchema, type SearchParams } from "../../../../lib/validation";
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,8 +34,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     
-    // Extract and validate query parameters
-    const params: SearchParams = {
+    // Extract and validate query parameters using Zod
+    const rawParams = {
       q: searchParams.get('q') || undefined,
       page: searchParams.get('page') || '1',
       limit: searchParams.get('limit') || '20',
@@ -56,18 +44,31 @@ export async function GET(request: NextRequest) {
       specialties: searchParams.get('specialties') || undefined,
       minExperience: searchParams.get('minExperience') || undefined,
       maxExperience: searchParams.get('maxExperience') || undefined,
-      sortBy: (searchParams.get('sortBy') as SearchParams['sortBy']) || 'firstName',
-      sortOrder: (searchParams.get('sortOrder') as SearchParams['sortOrder']) || 'asc'
+      sortBy: searchParams.get('sortBy') || 'firstName',
+      sortOrder: searchParams.get('sortOrder') || 'asc'
     };
+
+    const validationResult = searchParamsSchema.safeParse(rawParams);
     
-    // Validate and sanitize inputs
-    const page = Math.max(1, parseInt(params.page) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(params.limit) || 20));
+    if (!validationResult.success) {
+      return Response.json(
+        { 
+          error: 'Invalid parameters',
+          message: 'Please check your search parameters',
+          details: validationResult.error.issues
+        },
+        { status: 400 }
+      );
+    }
+
+    const params = validationResult.data;
+    const page = params.page;
+    const limit = params.limit;
     const offset = (page - 1) * limit;
     
     // Input sanitization
     const sanitizeInput = (input: string | undefined): string | undefined => {
-      return input?.trim().substring(0, 100); // Limit length and trim
+      return input?.trim();
     };
     
     const searchQuery = sanitizeInput(params.q);
@@ -102,50 +103,41 @@ export async function GET(request: NextRequest) {
       
       // Build search conditions
       if (searchQuery) {
-        const searchTerm = `%${searchQuery.toLowerCase()}%`;
         conditions.push(
           or(
-            like(sql`LOWER(${advocates.firstName})`, searchTerm),
-            like(sql`LOWER(${advocates.lastName})`, searchTerm),
-            like(sql`LOWER(${advocates.city})`, searchTerm),
-            like(sql`LOWER(${advocates.degree})`, searchTerm),
-            like(sql`LOWER(CAST(${advocates.specialties} AS TEXT))`, searchTerm)
+            ilike(advocates.firstName, `%${searchQuery}%`),
+            ilike(advocates.lastName, `%${searchQuery}%`),
+            ilike(advocates.city, `%${searchQuery}%`),
+            ilike(advocates.degree, `%${searchQuery}%`),
+            sql`${advocates.specialties}::text ILIKE ${'%' + searchQuery + '%'}`
           )
         );
       }
       
       if (cityFilter) {
-        conditions.push(like(sql`LOWER(${advocates.city})`, `%${cityFilter.toLowerCase()}%`));
+        conditions.push(ilike(advocates.city, `%${cityFilter}%`));
       }
       
       if (degreeFilter) {
-        conditions.push(like(sql`LOWER(${advocates.degree})`, `%${degreeFilter.toLowerCase()}%`));
+        conditions.push(ilike(advocates.degree, `%${degreeFilter}%`));
       }
       
       if (specialtiesFilter) {
-        conditions.push(like(sql`LOWER(CAST(${advocates.specialties} AS TEXT))`, `%${specialtiesFilter.toLowerCase()}%`));
+        conditions.push(sql`${advocates.specialties}::text ILIKE ${'%' + specialtiesFilter + '%'}`);
       }
       
       // Experience range filters
-      if (params.minExperience) {
-        const minExp = parseInt(params.minExperience);
-        if (!isNaN(minExp) && minExp >= 0) {
-          conditions.push(sql`${advocates.yearsOfExperience} >= ${minExp}`);
-        }
+      if (params.minExperience !== undefined) {
+        conditions.push(sql`${advocates.yearsOfExperience} >= ${params.minExperience}`);
       }
       
-      if (params.maxExperience) {
-        const maxExp = parseInt(params.maxExperience);
-        if (!isNaN(maxExp) && maxExp >= 0) {
-          conditions.push(sql`${advocates.yearsOfExperience} <= ${maxExp}`);
-        }
+      if (params.maxExperience !== undefined) {
+        conditions.push(sql`${advocates.yearsOfExperience} <= ${params.maxExperience}`);
       }
       
       // Apply WHERE conditions
       if (conditions.length > 0) {
-        query = query.where(sql`${conditions.reduce((acc, condition, index) => 
-          index === 0 ? condition : sql`${acc} AND ${condition}`, sql``)}`
-        );
+        query = query.where(and(...conditions));
       }
       
       // Apply sorting
@@ -163,16 +155,14 @@ export async function GET(request: NextRequest) {
       }).from(advocates);
       
       if (conditions.length > 0) {
-        const countConditions = conditions.reduce((acc, condition, index) => 
-          index === 0 ? condition : sql`${acc} AND ${condition}`, sql``);
-        countQuery.where(countConditions);
+        countQuery.where(and(...conditions));
       }
       
       const countResult = await countQuery.limit(1);
       total = countResult[0]?.count || 0;
       
     } catch (dbError) {
-      console.log('Database not available, using mock data');
+      // Database not available, fallback to mock data
       
       // Fallback to mock data
       let filteredData = [...advocateData];
@@ -208,18 +198,12 @@ export async function GET(request: NextRequest) {
         );
       }
       
-      if (params.minExperience) {
-        const minExp = parseInt(params.minExperience);
-        if (!isNaN(minExp)) {
-          filteredData = filteredData.filter(advocate => advocate.yearsOfExperience >= minExp);
-        }
+      if (params.minExperience !== undefined) {
+        filteredData = filteredData.filter(advocate => advocate.yearsOfExperience >= params.minExperience!);
       }
       
-      if (params.maxExperience) {
-        const maxExp = parseInt(params.maxExperience);
-        if (!isNaN(maxExp)) {
-          filteredData = filteredData.filter(advocate => advocate.yearsOfExperience <= maxExp);
-        }
+      if (params.maxExperience !== undefined) {
+        filteredData = filteredData.filter(advocate => advocate.yearsOfExperience <= params.maxExperience!);
       }
       
       // Apply sorting

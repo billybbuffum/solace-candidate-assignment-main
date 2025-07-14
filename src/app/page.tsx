@@ -93,8 +93,8 @@ export default function Home() {
   // AbortController to cancel pending requests
   const abortControllerRef = useRef<AbortController | null>(null);
   
-  // Legacy fetch function (kept for compatibility but no longer used)
-  const fetchAdvocates = useCallback(async (searchFilters: SearchFilters, page: number = 1, showLoadingState: boolean = true) => {
+  // Optimized fetch function with stable dependencies
+  const fetchAdvocates = useMemo(() => async (searchFilters: SearchFilters, page: number = 1, showLoadingState: boolean = true) => {
     // Cancel any pending request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -111,9 +111,37 @@ export default function Home() {
       }
       setError(null);
       
-      console.log(`Fetching advocates - Page: ${page}`, searchFilters);
       
-      const url = buildSearchUrl(searchFilters, page);
+      const params = new URLSearchParams();
+      params.set('page', page.toString());
+      params.set('limit', '12');
+      
+      if (searchFilters.query?.trim()) {
+        params.set('q', searchFilters.query.trim());
+      }
+      if (searchFilters.city?.trim()) {
+        params.set('city', searchFilters.city.trim());
+      }
+      if (searchFilters.degree?.trim()) {
+        params.set('degree', searchFilters.degree.trim());
+      }
+      if (searchFilters.specialties?.trim()) {
+        params.set('specialties', searchFilters.specialties.trim());
+      }
+      if (searchFilters.minExperience !== undefined && searchFilters.minExperience >= 0) {
+        params.set('minExperience', searchFilters.minExperience.toString());
+      }
+      if (searchFilters.maxExperience !== undefined && searchFilters.maxExperience >= 0) {
+        params.set('maxExperience', searchFilters.maxExperience.toString());
+      }
+      if (searchFilters.sortBy) {
+        params.set('sortBy', searchFilters.sortBy);
+      }
+      if (searchFilters.sortOrder) {
+        params.set('sortOrder', searchFilters.sortOrder);
+      }
+      
+      const url = `/api/advocates/search?${params.toString()}`;
       const response = await fetch(url, {
         signal: abortController.signal
       });
@@ -144,7 +172,6 @@ export default function Home() {
         return;
       }
       
-      console.error('Failed to fetch advocates:', err);
       setError(err instanceof Error ? err.message : 'Failed to load advocates');
       setAdvocates([]);
       setPagination(null);
@@ -155,7 +182,7 @@ export default function Home() {
         setIsSearching(false);
       }
     }
-  }, [buildSearchUrl]);
+  }, []);
   
   // Load all advocates once and apply client-side filtering
   const loadAllAdvocates = useCallback(async () => {
@@ -269,10 +296,32 @@ export default function Home() {
       }
     }
     
-    // Apply sorting
+    // Apply sorting with type safety
     filtered.sort((a, b) => {
-      const aValue = a[debouncedFilters.sortBy as keyof Advocate];
-      const bValue = b[debouncedFilters.sortBy as keyof Advocate];
+      let aValue: string | number;
+      let bValue: string | number;
+      
+      switch (debouncedFilters.sortBy) {
+        case 'firstName':
+          aValue = a.firstName;
+          bValue = b.firstName;
+          break;
+        case 'lastName':
+          aValue = a.lastName;
+          bValue = b.lastName;
+          break;
+        case 'city':
+          aValue = a.city;
+          bValue = b.city;
+          break;
+        case 'yearsOfExperience':
+          aValue = a.yearsOfExperience;
+          bValue = b.yearsOfExperience;
+          break;
+        default:
+          aValue = a.firstName;
+          bValue = b.firstName;
+      }
       
       let comparison = 0;
       if (aValue < bValue) comparison = -1;
@@ -311,7 +360,7 @@ export default function Home() {
   // Initial load
   useEffect(() => {
     loadAllAdvocates();
-  }, []); // Only run on mount
+  }, [loadAllAdvocates]);
   
   // Cleanup AbortController on unmount
   useEffect(() => {
@@ -356,7 +405,7 @@ export default function Home() {
   // Handle contact action
   const handleContact = useCallback((advocate: Advocate) => {
     // In a real app, this would open a contact modal or navigate to contact page
-    alert(`Contacting ${advocate.firstName} ${advocate.lastName} at ${advocate.phoneNumber}`);
+    alert(`Contacting ${advocate.firstName} ${advocate.lastName}`);
   }, []);
 
   return (
@@ -453,9 +502,9 @@ export default function Home() {
 
               {/* Results grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr">
-                {advocates.map((advocate, index) => {
-                  // Use a unique key - prefer id if available, otherwise use index with content
-                  const key = advocate.id || `${advocate.firstName}-${advocate.lastName}-${index}`;
+                {advocates.map((advocate) => {
+                  // Use stable unique key based on content, not index
+                  const key = advocate.id || `${advocate.firstName}-${advocate.lastName}-${advocate.phoneNumber}`;
                   
                   return (
                     <AdvocateCard

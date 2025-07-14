@@ -8,7 +8,10 @@ class RateLimiter {
   private maxRequests: number;
   private windowMs: number;
 
-  constructor(maxRequests = 100, windowMs = 900000) { // 100 requests per 15 minutes default
+  constructor(
+    maxRequests = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+    windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000') // 15 minutes default
+  ) {
     this.maxRequests = maxRequests;
     this.windowMs = windowMs;
   }
@@ -66,11 +69,12 @@ class RateLimiter {
 // Global rate limiter instance
 export const apiRateLimiter = new RateLimiter();
 
-// Periodic cleanup every 5 minutes
+// Periodic cleanup
 if (typeof window === 'undefined') { // Only run on server
+  const cleanupInterval = parseInt(process.env.RATE_LIMIT_CLEANUP_INTERVAL_MS || '300000'); // 5 minutes default
   setInterval(() => {
     apiRateLimiter.cleanup();
-  }, 300000);
+  }, cleanupInterval);
 }
 
 // Get client identifier from request
