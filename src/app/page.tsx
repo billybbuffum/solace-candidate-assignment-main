@@ -36,7 +36,6 @@ interface ApiResponse {
 
 export default function Home() {
   const [allAdvocates, setAllAdvocates] = useState<Advocate[]>([]); // Store all advocates
-  const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]); // Filtered results
   const [advocates, setAdvocates] = useState<Advocate[]>([]); // Displayed advocates (for compatibility)
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -59,36 +58,6 @@ export default function Home() {
   // Debounce search term to avoid excessive API calls
   const debouncedFilters = useDebounce(filters, 300);
 
-  // Memoized function to build search URL
-  const buildSearchUrl = useCallback((searchFilters: SearchFilters, page: number = 1) => {
-    const params = new URLSearchParams();
-    
-    if (searchFilters.query.trim()) {
-      params.set('q', searchFilters.query.trim());
-    }
-    if (searchFilters.city.trim()) {
-      params.set('city', searchFilters.city.trim());
-    }
-    if (searchFilters.degree.trim()) {
-      params.set('degree', searchFilters.degree.trim());
-    }
-    if (searchFilters.specialties.trim()) {
-      params.set('specialties', searchFilters.specialties.trim());
-    }
-    if (searchFilters.minExperience.trim()) {
-      params.set('minExperience', searchFilters.minExperience.trim());
-    }
-    if (searchFilters.maxExperience.trim()) {
-      params.set('maxExperience', searchFilters.maxExperience.trim());
-    }
-    
-    params.set('page', page.toString());
-    params.set('limit', '12'); // Show 12 cards per page for better layout
-    params.set('sortBy', searchFilters.sortBy);
-    params.set('sortOrder', searchFilters.sortOrder);
-    
-    return `/api/advocates/search?${params.toString()}`;
-  }, []);
   
   // AbortController to cancel pending requests
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -128,11 +97,17 @@ export default function Home() {
       if (searchFilters.specialties?.trim()) {
         params.set('specialties', searchFilters.specialties.trim());
       }
-      if (searchFilters.minExperience !== undefined && searchFilters.minExperience >= 0) {
-        params.set('minExperience', searchFilters.minExperience.toString());
+      if (searchFilters.minExperience?.trim()) {
+        const minExp = parseInt(searchFilters.minExperience);
+        if (!isNaN(minExp) && minExp >= 0) {
+          params.set('minExperience', minExp.toString());
+        }
       }
-      if (searchFilters.maxExperience !== undefined && searchFilters.maxExperience >= 0) {
-        params.set('maxExperience', searchFilters.maxExperience.toString());
+      if (searchFilters.maxExperience?.trim()) {
+        const maxExp = parseInt(searchFilters.maxExperience);
+        if (!isNaN(maxExp) && maxExp >= 0) {
+          params.set('maxExperience', maxExp.toString());
+        }
       }
       if (searchFilters.sortBy) {
         params.set('sortBy', searchFilters.sortBy);
