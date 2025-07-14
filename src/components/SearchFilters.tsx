@@ -18,9 +18,9 @@ export interface SearchFilters {
   sortOrder: 'asc' | 'desc';
 }
 
-const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({ 
-  onFiltersChange, 
-  isLoading = false 
+const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
+  onFiltersChange,
+  isLoading = false
 }) => {
   const [filters, setFilters] = useState<SearchFilters>({
     query: '',
@@ -63,10 +63,10 @@ const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
     { value: 'yearsOfExperience', label: 'Experience' },
     { value: 'city', label: 'City' }
   ];
-  
+
   const filterSuggestions = [
-    'General Mental Health',
-    'Trauma & PTSD', 
+    'Depression',
+    'Trauma & PTSD',
     'Men\'s issues',
     'Women\'s issues',
     'Relationship Issues',
@@ -116,16 +116,16 @@ const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
           aria-controls="advanced-filters"
         >
           <span>{showAdvanced ? 'Hide' : 'Show'} advanced filters</span>
-          <svg 
-            className={`ml-1 h-4 w-4 transform transition-transform ${showAdvanced ? 'rotate-180' : ''}`} 
-            fill="none" 
-            stroke="currentColor" 
+          <svg
+            className={`ml-1 h-4 w-4 transform transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        
+
         {/* Filter suggestions - only show when advanced filters are hidden */}
         {!showAdvanced && (
           <div className="flex flex-col gap-2">
@@ -138,11 +138,10 @@ const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
                     key={index}
                     onClick={() => handleSuggestionClick(suggestion)}
                     disabled={isLoading}
-                    className={`px-3 py-1 text-xs font-medium border rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                      isActive 
-                        ? 'bg-solace-primary text-white border-solace-primary' 
+                    className={`px-3 py-1 text-xs font-medium border rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${isActive
+                        ? 'bg-solace-primary text-white border-solace-primary'
                         : 'bg-solace-light text-solace-primary border-solace-primary/20 hover:bg-solace-primary hover:text-white'
-                    }`}
+                      }`}
                   >
                     {suggestion}
                   </button>
