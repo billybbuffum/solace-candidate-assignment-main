@@ -34,3 +34,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Development tool files
+CLAUDE.md
+.claude/
+*claude*
+*Claude*
