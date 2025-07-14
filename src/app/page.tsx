@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useDebounce } from '../hooks/useDebounce';
 import AdvocateCard from '../components/AdvocateCard';
 import SearchFiltersComponent, { SearchFilters } from '../components/SearchFilters';
@@ -88,8 +88,19 @@ export default function Home() {
     return `/api/advocates/search?${params.toString()}`;
   }, []);
   
+  // AbortController to cancel pending requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+  
   // Fetch advocates with search and pagination
   const fetchAdvocates = useCallback(async (searchFilters: SearchFilters, page: number = 1, showLoadingState: boolean = true) => {
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     try {
       if (showLoadingState) {
         setIsLoading(true);
@@ -101,7 +112,9 @@ export default function Home() {
       console.log(`Fetching advocates - Page: ${page}`, searchFilters);
       
       const url = buildSearchUrl(searchFilters, page);
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        signal: abortController.signal
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -124,13 +137,21 @@ export default function Home() {
       // Remove all automatic scrolling - user stays at current position
       
     } catch (err) {
+      // Don't update state if request was aborted
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      
       console.error('Failed to fetch advocates:', err);
       setError(err instanceof Error ? err.message : 'Failed to load advocates');
       setAdvocates([]);
       setPagination(null);
     } finally {
-      setIsLoading(false);
-      setIsSearching(false);
+      // Only update loading state if request wasn't aborted
+      if (!abortController.signal.aborted) {
+        setIsLoading(false);
+        setIsSearching(false);
+      }
     }
   }, [buildSearchUrl]);
   
@@ -138,6 +159,15 @@ export default function Home() {
   useEffect(() => {
     fetchAdvocates(filters, 1, true);
   }, []); // Only run on mount
+  
+  // Cleanup AbortController on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
   
   // Search when debounced filters change
   useEffect(() => {
