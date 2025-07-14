@@ -65,14 +65,14 @@ const SearchFiltersComponent: React.FC<SearchFiltersProps> = ({
   ];
   
   const filterSuggestions = [
-    'Depression',
-    'Anxiety',
-    'PTSD',
-    'Men\'s Health',
-    'Women\'s Health',
-    'Couples Therapy',
-    'Grief Counseling',
-    'Addiction'
+    'General Mental Health',
+    'Trauma & PTSD', 
+    'Men\'s issues',
+    'Women\'s issues',
+    'Relationship Issues',
+    'Substance use/abuse',
+    'LGBTQ',
+    'Bipolar'
   ];
 
   const handleSuggestionClick = (suggestion: string) => {
