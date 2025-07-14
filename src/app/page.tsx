@@ -35,7 +35,9 @@ interface ApiResponse {
 }
 
 export default function Home() {
-  const [advocates, setAdvocates] = useState<Advocate[]>([]);
+  const [allAdvocates, setAllAdvocates] = useState<Advocate[]>([]); // Store all advocates
+  const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]); // Filtered results
+  const [advocates, setAdvocates] = useState<Advocate[]>([]); // Displayed advocates (for compatibility)
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -88,7 +90,7 @@ export default function Home() {
     return `/api/advocates/search?${params.toString()}`;
   }, []);
   
-  // Fetch advocates with search and pagination
+  // Legacy fetch function (kept for compatibility but no longer used)
   const fetchAdvocates = useCallback(async (searchFilters: SearchFilters, page: number = 1, showLoadingState: boolean = true) => {
     try {
       if (showLoadingState) {
@@ -134,26 +136,143 @@ export default function Home() {
     }
   }, [buildSearchUrl]);
   
+  // Load all advocates once and apply client-side filtering
+  const loadAllAdvocates = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      console.log('Loading all advocates for client-side filtering');
+      
+      // Load all advocates (limit 100 to be safe)
+      const url = `/api/advocates/search?page=1&limit=100&sortBy=firstName&sortOrder=asc`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const jsonResponse: ApiResponse = await response.json();
+      
+      if (!jsonResponse.data || !Array.isArray(jsonResponse.data)) {
+        throw new Error('Invalid response format');
+      }
+      
+      setAllAdvocates(jsonResponse.data);
+      console.log(`Loaded ${jsonResponse.data.length} advocates for client-side filtering`);
+      
+    } catch (err) {
+      console.error('Failed to load advocates:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load advocates');
+      setAllAdvocates([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+  
+  // Client-side filtering
+  useEffect(() => {
+    if (allAdvocates.length === 0) return;
+    
+    setIsSearching(true);
+    
+    // Apply filters
+    let filtered = [...allAdvocates];
+    
+    // Query filter
+    if (debouncedFilters.query.trim()) {
+      const query = debouncedFilters.query.toLowerCase().trim();
+      filtered = filtered.filter(advocate => 
+        advocate.firstName.toLowerCase().includes(query) ||
+        advocate.lastName.toLowerCase().includes(query) ||
+        advocate.city.toLowerCase().includes(query) ||
+        advocate.degree.toLowerCase().includes(query) ||
+        advocate.specialties.some(specialty => specialty.toLowerCase().includes(query))
+      );
+    }
+    
+    // City filter
+    if (debouncedFilters.city.trim()) {
+      const city = debouncedFilters.city.toLowerCase().trim();
+      filtered = filtered.filter(advocate => 
+        advocate.city.toLowerCase().includes(city)
+      );
+    }
+    
+    // Degree filter
+    if (debouncedFilters.degree.trim()) {
+      filtered = filtered.filter(advocate => 
+        advocate.degree === debouncedFilters.degree
+      );
+    }
+    
+    // Specialties filter
+    if (debouncedFilters.specialties.trim()) {
+      const specialty = debouncedFilters.specialties.toLowerCase().trim();
+      filtered = filtered.filter(advocate => 
+        advocate.specialties.some(s => s.toLowerCase().includes(specialty))
+      );
+    }
+    
+    // Experience filters
+    if (debouncedFilters.minExperience.trim()) {
+      const min = parseInt(debouncedFilters.minExperience);
+      if (!isNaN(min)) {
+        filtered = filtered.filter(advocate => advocate.yearsOfExperience >= min);
+      }
+    }
+    
+    if (debouncedFilters.maxExperience.trim()) {
+      const max = parseInt(debouncedFilters.maxExperience);
+      if (!isNaN(max)) {
+        filtered = filtered.filter(advocate => advocate.yearsOfExperience <= max);
+      }
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const aValue = a[debouncedFilters.sortBy as keyof Advocate];
+      const bValue = b[debouncedFilters.sortBy as keyof Advocate];
+      
+      let comparison = 0;
+      if (aValue < bValue) comparison = -1;
+      if (aValue > bValue) comparison = 1;
+      
+      return debouncedFilters.sortOrder === 'desc' ? -comparison : comparison;
+    });
+    
+    // Create pagination
+    const itemsPerPage = 12;
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const pageData = filtered.slice(startIndex, endIndex);
+    
+    setAdvocates(pageData);
+    setPagination({
+      page: currentPage,
+      limit: itemsPerPage,
+      total: filtered.length,
+      totalPages,
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1
+    });
+    
+    setIsSearching(false);
+    
+    console.log(`Filtered ${filtered.length} advocates, showing ${pageData.length} on page ${currentPage}`);
+  }, [allAdvocates, debouncedFilters, currentPage]);
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedFilters]);
+  
   // Initial load
   useEffect(() => {
-    fetchAdvocates(filters, 1, true);
+    loadAllAdvocates();
   }, []); // Only run on mount
   
-  // Search when debounced filters change
-  useEffect(() => {
-    if (JSON.stringify(debouncedFilters) === JSON.stringify(filters)) {
-      setCurrentPage(1); // Reset to first page on new search
-      fetchAdvocates(debouncedFilters, 1, false);
-    }
-  }, [debouncedFilters, fetchAdvocates]);
-  
-  // Handle page changes
-  useEffect(() => {
-    // Only skip if this is the very first render (initial load)
-    // Allow navigation to page 1 from other pages
-    if (currentPage === 1 && advocates.length === 0 && !isLoading) return;
-    fetchAdvocates(debouncedFilters, currentPage, false);
-  }, [currentPage, debouncedFilters, fetchAdvocates]);
 
   // Handle filter changes
   const handleFiltersChange = useCallback((newFilters: SearchFilters) => {
